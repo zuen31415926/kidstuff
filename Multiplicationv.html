@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>九九乘法泡泡配對遊戲</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #f0f0f0;
+  margin: 0;
+  padding: 20px;
+}
+#game-container {
+  display: grid;
+  grid-template-columns: repeat(4, 100px);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.bubble {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background-color: #4CAF50;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.2s, border 0.2s;
+}
+.bubble:hover {
+  transform: scale(1.1);
+}
+.bubble.selected {
+  border: 3px solid #ffeb3b;
+}
+.bubble.matched {
+  background-color: #ccc;
+  visibility: hidden;
+}
+#score {
+  font-size: 22px;
+  color: #444;
+  margin-bottom: 10px;
+}
+#message {
+  font-size: 24px;
+  color: #333;
+  margin-top: 20px;
+}
+button {
+  padding: 10px 20px;
+  font-size: 16px;
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+button:hover {
+  background-color: #1976D2;
+}
+#target-input {
+  font-size: 16px;
+  margin-left: 5px;
+  margin-right: 10px;
+}
+label {
+  font-size: 18px;
+}
+</style>
+</head>
+<body>
+<h1>九九乘法泡泡配對遊戲</h1>
+<label for="target-input">設定目標分數：</label>
+<input id="target-input" type="number" value="10" min="1" style="width:60px;">
+<div id="score">分數: 0 / 目標: 50</div>
+<div id="game-container"></div>
+<div id="message"></div>
+<button onclick="resetGame()">重新開始</button>
+<audio id="correct-sound" preload="auto" aria-hidden="true"></audio>
+<script>
+const gameContainer = document.getElementById('game-container');
+const messageElement = document.getElementById('message');
+const scoreElement = document.getElementById('score');
+const targetInput = document.getElementById('target-input');
+let bubbles = [];
+let selectedBubbles = [];
+let matchedPairs = 0;
+let score = 0;
+let targetScore = Number(targetInput.value) || 50;
+const correctSound = document.getElementById('correct-sound');
+
+// --- SOUND LOGIC ----
+let audioCtx;
+let buf = null;
+function ensureBeepBuffer() {
+  if (buf) return;
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const sampleRate = audioCtx.sampleRate;
+    const duration = 0.25;
+    const length = sampleRate * duration;
+    const buffer = audioCtx.createBuffer(1, length, sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < length; i++) {
+      const t = i / length;
+      const freq = 440 + t * 440;
+      data[i] = Math.sin(2 * Math.PI * freq * (i / sampleRate)) * (1 - t * 0.2);
+    }
+    buf = buffer;
+  } catch (e) {
+    buf = null;
+  }
+}
+
+function playCorrectSound() {
+  if (correctSound && correctSound.readyState >= 2) {
+    correctSound.currentTime = 0;
+    correctSound.play().catch(() => {});
+    return;
+  }
+  if (buf && audioCtx) {
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(audioCtx.destination);
+    src.start(0);
+  }
+}
+
+// -------- GAME LOGIC ---------
+function generatePairs() {
+  const allPairs = [];
+  for (let i = 1; i <= 9; i++) {
+    for (let j = i; j <= 9; j++) {
+      allPairs.push({ equation: `${i} × ${j}`, result: `${i * j}` });
+    }
+  }
+  const shuffledPairs = shuffle([...allPairs]);
+  return shuffledPairs.slice(0, 6);
+}
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+function initGame() {
+  gameContainer.innerHTML = '';
+  bubbles = [];
+  selectedBubbles = [];
+  matchedPairs = 0;
+  targetScore = Number(targetInput.value) || 50;
+  // Only reset score if it has already reached/exceeded the target
+  if (score >= targetScore) {
+    score = 0;
+  }
+  scoreElement.textContent = `分數: ${score} / 目標: ${targetScore}`;
+  messageElement.textContent = '';
+  ensureBeepBuffer();
+  const pairs = generatePairs();
+  const allBubbles = [];
+  pairs.forEach((pair, index) => {
+    allBubbles.push({ text: pair.equation, type: 'equation', pairId: index });
+    allBubbles.push({ text: pair.result, type: 'result', pairId: index });
+  });
+  shuffle(allBubbles);
+  allBubbles.forEach(bubble => {
+    const bubbleElement = document.createElement('div');
+    bubbleElement.classList.add('bubble');
+    bubbleElement.textContent = bubble.text;
+    bubbleElement.dataset.type = bubble.type;
+    bubbleElement.dataset.pairId = bubble.pairId;
+    bubbleElement.addEventListener('click', () => handleBubbleClick(bubbleElement));
+    gameContainer.appendChild(bubbleElement);
+    bubbles.push(bubbleElement);
+  });
+}
+
+function handleBubbleClick(bubble) {
+  if (bubble.classList.contains('matched') || bubble.classList.contains('selected')) {
+    return;
+  }
+  bubble.classList.add('selected');
+  selectedBubbles.push(bubble);
+  if (selectedBubbles.length === 2) {
+    checkPair();
+  }
+}
+
+function checkPair() {
+  const [first, second] = selectedBubbles;
+  const firstType = first.dataset.type;
+  const secondType = second.dataset.type;
+  const firstPairId = first.dataset.pairId;
+  const secondPairId = second.dataset.pairId;
+  if (firstType !== secondType && firstPairId === secondPairId) {
+    // 正確配對
+    first.classList.add('matched');
+    second.classList.add('matched');
+    matchedPairs++;
+    score++;
+    messageElement.textContent = '配對成功！';
+    scoreElement.textContent = `分數: ${score} / 目標: ${targetScore}`;
+    playCorrectSound();
+    selectedBubbles = [];
+    if (score === targetScore) {
+      setTimeout(() => {
+        alert(`恭喜！你獲得了${targetScore}分！`);
+      }, 300);
+    }
+    // 判斷本回合是否完成
+    if (matchedPairs === generatePairs().length) {
+      messageElement.textContent = '恭喜！遊戲完成！';
+    }
+  } else {
+    messageElement.textContent = '配對失敗，請重試！';
+    setTimeout(() => {
+      first.classList.remove('selected');
+      second.classList.remove('selected');
+      selectedBubbles = [];
+      messageElement.textContent = '';
+    }, 1000);
+  }
+}
+
+function resetGame() {
+  initGame();
+}
+
+// 當目標分數改變時，重新開始
+targetInput.addEventListener('change', resetGame);
+
+initGame();
+</script>
+</body>
+</html>
