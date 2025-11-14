@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Horizontal Subtraction Visualization</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      background: #f9f9f9;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px #ccc;
+    }
+    .main-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 32px;
+      margin-top: 20px;
+    }
+    .block-set {
+      min-width: 200px;
+      flex: 1 1 0;
+    }
+    .label {
+      font-weight: bold;
+      margin-bottom: 4px;
+      margin-top: 10px;
+      font-size: 1.04em;
+    }
+    .big-num {
+      font-size: 2em;
+      color: #333;
+      font-weight: bold;
+      line-height: 1em;
+      margin-right: 6px;
+      letter-spacing:1px;
+    }
+    .op-line {
+      font-size: 2.1em;
+      font-weight: bold;
+      color: #4287f5;
+      padding-bottom: 6px;
+      margin-bottom: 9px;
+      border-bottom: 2px solid #e0e0e0;
+      text-align: left;
+    }
+    .blocks {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-bottom: 10px;
+    }
+    .block-row {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      margin-bottom: 2px;
+    }
+    .row-label {
+      width: 22px;
+      min-width: 22px;
+      text-align: center;
+      font-size: 0.8em;
+      color: #999;
+      margin-right: 4px;
+      font-family: Arial, sans-serif;
+      display: inline-block;
+    }
+    .block, .block2, .block-result1, .block-result2, .block-crossed {
+      width: 18px;
+      height: 18px;
+      border: 1px solid #444;
+      border-radius: 4px;
+      margin: 1px;
+      display: inline-block;
+      position: relative;
+    }
+    .block { background: #5cb85c; }
+    .block2 { background: #4287f5; }
+    .block-result1 { background: #5cb85c; }
+    .block-result2 { background: #4287f5; }
+    .block-crossed {
+      background: #bedfff;
+      opacity: 0.8;
+    }
+    .block-crossed::after {
+      content: '';
+      position: absolute;
+      left: 3px; top: 3px; right: 3px; bottom: 3px;
+      border-radius: 2px;
+      width: 12px;
+      height: 12px;
+      pointer-events: none;
+      background: none;
+      display: block;
+      z-index: 10;
+      background-image:
+        linear-gradient(45deg, #4287f5 2px, transparent 2px),
+        linear-gradient(-45deg, #4287f5 2px, transparent 2px);
+      background-size: 100% 100%;
+      background-repeat: no-repeat;
+    }
+    .ten-label {
+      width: 32px;
+      font-size: 1em;
+      color: #222;
+      margin-left: 6px;
+      font-weight: bold;
+      text-align: center;
+      display: inline-block;
+    }
+    .operation {
+      margin: 18px 0 8px 0;
+      font-size: 1.1em;
+      text-align: center;
+    }
+    button {
+      padding: 7px 16px;
+      font-size: 1em;
+      border: none;
+      border-radius: 5px;
+      background: #4287f5;
+      color: white;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    button:hover {
+      background: #306dc5;
+    }
+    @media (max-width: 900px) {
+      .main-row { flex-direction: column; }
+      .operation { margin: 12px 0 8px 0; }
+    }
+  </style>
+</head>
+<body>
+  <h2>Addition & Subtraction Visualization (numbers &lt; 100)</h2>
+  <div>
+    <label>
+      <input type="radio" name="op" value="add" checked> Addition
+    </label>
+    <label>
+      <input type="radio" name="op" value="sub"> Subtraction
+    </label>
+    <button onclick="generateNumbers()">Try another!</button>
+  </div>
+  <div class="operation" id="operation"></div>
+  <div class="main-row">
+    <div id="num1set" class="block-set"></div>
+    <div id="num2set" class="block-set"></div>
+    <div id="resultset" class="block-set"></div>
+  </div>
+  <div style="margin-top:14px; font-size:0.95em;color:#666">
+    <span style="display:inline-block;width:16px;height:16px;background:#5cb85c;margin:0 3px 0 10px;border-radius:4px;border:1px solid #444;vertical-align:middle"></span> First Number
+    <span style="display:inline-block;width:16px;height:16px;background:#4287f5;margin:0 3px 0 10px;border-radius:4px;border:1px solid #444;vertical-align:middle"></span> Second Number
+    <span style="display:inline-block;width:16px;height:16px;background:#bedfff;margin:0 3px 0 10px;border-radius:4px;border:1px solid #444;vertical-align:middle; position:relative;"><span style="display:block;position:absolute;left:2px;top:6px;width:12px;height:2px;background:#4287f5;transform:rotate(45deg);"></span><span style="display:block;position:absolute;left:2px;top:6px;width:12px;height:2px;background:#4287f5;transform:rotate(-45deg);"></span></span> Crossed (subtracted)
+  </div>
+  <script>
+    function createGroupedBlocks(count, className, bigNum) {
+      let html = `<div class="blocks">`;
+      for (let row = 0; row < Math.ceil(count / 10); row++) {
+        let blocksInRow = Math.min(10, count - row*10);
+        html += `<div class="block-row">`;
+        html += `<span class="row-label">${row + 1}</span>`;
+        for (let i = 0; i < blocksInRow; i++) {
+          html += `<div class="${className}"></div>`;
+        }
+        html += `<span class="ten-label">${blocksInRow}</span>`;
+        html += `</div>`;
+      }
+      if (typeof bigNum === "number") {
+        html = `<div class="big-num">${bigNum}</div>` + html;
+      }
+      return html;
+    }
+
+    function createSubtractionCrossedBlocksResult(n1, n2, bigNum, smallNum) {
+      let html = `<div class="blocks">`;
+
+      // Build row sizes from top to bottom
+      let rowSizes = [], totalRows = Math.ceil(n1 / 10);
+      for (let i = 0; i < totalRows; i++) {
+        rowSizes.push(Math.min(10, n1 - i * 10));
+      }
+
+      // Identify row indices from bottom up
+      let rowIndices = [];
+      for (let r = rowSizes.length - 1; r >= 0; r--) { rowIndices.push(r); }
+
+      // Cross full rows from bottom up if possible
+      let blocksToCross = n2;
+      let blockStates = rowSizes.map(sz => Array(sz).fill("block"));
+
+      for (let ri = 0; ri < rowIndices.length; ri++) {
+        let r = rowIndices[ri];
+        if (rowSizes[r] === 10 && blocksToCross >= 10) {
+          for (let c = 0; c < 10; c++) blockStates[r][c] = "block-crossed";
+          blocksToCross -= 10;
+        }
+      }
+
+      // Cross remaining blocks from lowest available blocks (bottom up, right to left)
+      for (let ri = 0; ri < rowIndices.length && blocksToCross > 0; ri++) {
+        let r = rowIndices[ri];
+        let uncrossed = blockStates[r].filter(b => b === "block").length;
+        let crossInRow = Math.min(blocksToCross, uncrossed);
+        if (crossInRow > 0) {
+          for (let c = blockStates[r].length - 1; c >= 0 && crossInRow > 0; c--) {
+            if (blockStates[r][c] === "block") {
+              blockStates[r][c] = "block-crossed";
+              crossInRow--; blocksToCross--;
+            }
+          }
+        }
+      }
+
+      // Render the result blocks; include the row number on the left and only count uncrossed blocks on the right
+      for (let r = 0; r < blockStates.length; r++) {
+        let uncrossedBlocks = blockStates[r].filter(b => b === "block").length;
+        html += `<div class="block-row">`;
+        html += `<span class="row-label">${r + 1}</span>`;
+        for (let c = 0; c < blockStates[r].length; c++) {
+          html += `<div class="${blockStates[r][c]}"></div>`;
+        }
+        html += `<span class="ten-label">${uncrossedBlocks}</span>`;
+        html += `</div>`;
+      }
+      html += `</div>`;
+      let opLine = `<div class="op-line">${bigNum} &minus; ${smallNum}</div>`;
+      html = opLine + html;
+      return html;
+    }
+
+    function createResultBlocksAdd(n1, n2) {
+      let total = n1 + n2;
+      let html = `<div class="blocks">`;
+      for (let row = 0; row < Math.ceil(total / 10); row++) {
+        let blocksInRow = Math.min(10, total - row*10);
+        html += `<div class="block-row">`;
+        html += `<span class="row-label">${row + 1}</span>`;
+        for (let i = 0; i < blocksInRow; i++) {
+          let idx = row * 10 + i;
+          let className = idx < n1 ? "block-result1" : "block-result2";
+          html += `<div class="${className}"></div>`;
+        }
+        html += `<span class="ten-label">${blocksInRow}</span>`;
+        html += `</div>`;
+      }
+      html = `<div class="big-num">${n1} + ${n2}</div>` + html;
+      return html;
+    }
+
+    function randomUpTo(max) {
+      return Math.floor(Math.random() * max) + 1;
+    }
+
+    function generateNumbers() {
+      const op = document.querySelector('input[name="op"]:checked').value;
+      let n1, n2, res, operationText;
+      if(op === "add") {
+        n1 = randomUpTo(99);
+        n2 = randomUpTo(99 - n1);
+        res = n1 + n2;
+        operationText = `Addition: ${n1} + ${n2} = ${res}`;
+        document.getElementById("num1set").innerHTML =
+          `<div class="label">First Number</div>${createGroupedBlocks(n1, "block", n1)}`;
+        document.getElementById("num2set").innerHTML =
+          `<div class="label">Second Number</div>${createGroupedBlocks(n2, "block2", n2)}`;
+        document.getElementById("resultset").innerHTML =
+          `<div class="label">Result</div>${createResultBlocksAdd(n1, n2)}`;
+      } else {
+        n1 = randomUpTo(99);
+        n2 = randomUpTo(n1);
+        res = n1 - n2;
+        operationText = `Subtraction: ${n1} - ${n2} = ${res}`;
+        document.getElementById("num1set").innerHTML =
+          `<div class="label">Bigger Number</div>${createGroupedBlocks(n1, "block", n1)}`;
+        document.getElementById("num2set").innerHTML =
+          `<div class="label">Smaller Number</div>${createGroupedBlocks(n2, "block2", n2)}`;
+        document.getElementById("resultset").innerHTML =
+          `<div class="label">Result:</div>${createSubtractionCrossedBlocksResult(n1, n2, n1, n2)}`;
+      }
+      document.getElementById("operation").textContent = operationText;
+    }
+
+    window.onload = generateNumbers;
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('input[name="op"]').forEach(function(el) {
+        el.addEventListener('change', generateNumbers);
+      });
+    });
+  </script>
+</body>
+</html>
