@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>b or d sound game</title>
+  <style>
+    body { font-family: sans-serif; margin-top: 40px; }
+    .container { display: flex; justify-content: flex-start; }
+    .game-pane { flex: 1; min-width: 520px; text-align: center; }
+    .score-pane { width: 180px; min-width: 180px; border-left: 2px solid #eee; padding-left: 36px; display: flex; flex-direction: column; align-items: flex-start;}
+    h1 { margin-bottom: 25px; font-size: 2.7em; font-weight: bold; }
+    #circle { position: relative; width: 440px; height: 440px; margin: 30px auto; background: #f6faff; border-radius: 50%; }
+    .circle-letter { 
+      position: absolute; 
+      width: 60px; height: 60px; 
+      font-size: 3em; font-weight: bold; 
+      line-height: 60px; text-align: center; 
+      cursor: pointer; user-select: none; 
+      background: none; border: none; color: #333; 
+      transition: background 0.2s; border-radius: 50%; 
+    }
+    .circle-letter:disabled { color: #aaa; cursor: default; background: #eee;}
+    .result { font-size: 2em; margin: 25px; min-height: 45px;}
+    #playBtn { font-size: 1.4em; padding: 8px 26px; margin: 13px 12px;}
+    .score-card-row { 
+      display: flex; 
+      gap: 20px;
+      justify-content: center;
+      align-items: flex-end;
+      margin-bottom: 15px; 
+      margin-top: 30px;
+      width: 100%;
+    }
+    .score-card-barcol { 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      width: 56px;
+    }
+    .score-bar-vertical-bg { background: #eee; width: 40px; height: 260px; border-radius: 14px; position: relative; }
+    .score-bar-ok { background: #72e177; width: 40px; border-radius: 14px 14px 0 0; position: absolute; left: 0; bottom: 0; }
+    .score-bar-bad { background: #fa8282; width: 40px; border-radius: 14px 14px 0 0; position: absolute; left: 0; bottom: 0; }
+    .score-num-vert { position: absolute; width: 40px; text-align: center; left: 0; top: -25px; font-size: 1.1em; font-weight: bold;}
+    .goal-line { position: absolute; left: -6px; width: 52px; height: 2px; background: #1759e6; }
+    .goal-label { 
+      position: absolute; right: -52px; width: 44px; top: -7px; text-align:left; color: #1759e6; font-size: 1em; font-weight: bold; 
+    }
+    .score-label-bottom {
+      margin-top: 8px; font-size:1.08em; font-weight: bold; text-align: center;
+    }
+    #resetBtn { font-size: 1em; padding: 7px 15px; margin-top: 28px;}
+    .congrats-msg {
+      color: #37b000;
+      font-size: 1.7em;
+      font-weight: bold;
+      margin: 18px;
+      text-shadow: 1px 1px 8px #67ff9946, 0 0 2px #fff;
+      animation: congrats-blink 0.7s alternate infinite;
+    }
+    @keyframes congrats-blink {
+      0% { opacity: 1; }
+      100% { opacity: 0.55; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="game-pane">
+      <h1>b or d sound game</h1>
+      <button id="playBtn">Play Sound</button>
+      <div id="circle"></div>
+      <div class="result" id="result"></div>
+      <div id="congrats" class="congrats-msg" style="display:none;">Congratulations! You reached the goal!</div>
+    </div>
+    <div class="score-pane">
+      <div class="score-card-row">
+        <div class="score-card-barcol">
+          <div class="score-bar-vertical-bg" id="okBarBg">
+            <div id="scoreBarOk" class="score-bar-ok" style="height:0%"></div>
+            <div class="score-num-vert" id="scoreNumOk">0</div>
+            <div id="goalLineOk" class="goal-line"></div>
+            <div id="goalLblOk" class="goal-label">Goal</div>
+          </div>
+          <div class="score-label-bottom">Correct</div>
+        </div>
+        <div class="score-card-barcol">
+          <div class="score-bar-vertical-bg" id="badBarBg">
+            <div id="scoreBarBad" class="score-bar-bad" style="height:0%"></div>
+            <div class="score-num-vert" id="scoreNumBad">0</div>
+          </div>
+          <div class="score-label-bottom">Incorrect</div>
+        </div>
+      </div>
+      <button id="resetBtn">Reset</button>
+    </div>
+  </div>
+  <script>
+    const allLetters = [
+      ...Array(5).fill('b'),
+      ...Array(5).fill('d'),
+      ...Array(3).fill('g'),
+      ...Array(3).fill('q'),
+      ...Array(3).fill('6'),
+      ...Array(3).fill('p'),
+      ...Array(3).fill('9')
+    ];
+    const targetLetters = ['b','d'];
+    const totalLetters = allLetters.length;
+    const circleSize = 440;
+    const letterSize = 60;
+    const SCORE_GOAL = 50;
+    const BAR_HEIGHT = 260;
+
+    const circle = document.getElementById('circle');
+    const resultEl = document.getElementById('result');
+    const playBtn = document.getElementById('playBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    // Score bar elements
+    const scoreBarOk = document.getElementById('scoreBarOk');
+    const scoreNumOk = document.getElementById('scoreNumOk');
+    const goalLineOk = document.getElementById('goalLineOk');
+    const goalLblOk = document.getElementById('goalLblOk');
+    const scoreBarBad = document.getElementById('scoreBarBad');
+    const scoreNumBad = document.getElementById('scoreNumBad');
+    const congratsMsg = document.getElementById('congrats');
+
+    let currentLetter = null;
+    let canAnswer = false;
+    let letterButtons = [];
+    let awaitingNext = false;
+    let correctScore = 0, wrongScore = 0;
+
+    function updateScoreCard() {
+      scoreNumOk.textContent = correctScore;
+      scoreNumBad.textContent = wrongScore;
+      // Bars
+      let pctOk = Math.min(1, correctScore/SCORE_GOAL) * 100;
+      let pctBad = Math.min(1, wrongScore/SCORE_GOAL) * 100;
+      scoreBarOk.style.height = pctOk + "%";
+      scoreBarBad.style.height = pctBad + "%";
+      // Goal line position
+      let goalY = BAR_HEIGHT - (BAR_HEIGHT * SCORE_GOAL/ SCORE_GOAL) - 1;
+      goalLineOk.style.top = goalY + "px";
+      goalLineOk.style.display = "block";
+      goalLblOk.style.top = (goalY-7) + "px";
+      goalLblOk.style.display = "block";
+      // Only show congratulation if goal reached
+      if (correctScore >= SCORE_GOAL) {
+        congratsMsg.style.display = "block";
+        speakCongrats();
+      } else {
+        congratsMsg.style.display = "none";
+      }
+    }
+
+    let alreadySpokenCongrats = false;
+    function speakCongrats() {
+      if (alreadySpokenCongrats) return;
+      alreadySpokenCongrats = true;
+      setTimeout(() => {
+        const utter = new window.SpeechSynthesisUtterance("Congratulations! You reached the goal!");
+        utter.rate = 0.8;
+        window.speechSynthesis.speak(utter);
+      }, 200);
+    }
+
+    function speak(letter) {
+      const utter = new window.SpeechSynthesisUtterance(letter);
+      utter.rate = 0.6;
+      window.speechSynthesis.speak(utter);
+    }
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function placeLettersInCircle(n, circleR, letterR) {
+      const positions = [];
+      let tries = 0;
+      while (positions.length < n && tries < 5000) {
+        tries++;
+        const theta = Math.random() * 2 * Math.PI;
+        const r = Math.sqrt(Math.random()) * (circleR - letterR);
+        const x = circleR + r * Math.cos(theta) - letterR;
+        const y = circleR + r * Math.sin(theta) - letterR;
+        let overlapping = false;
+        for (const pos of positions) {
+          const dx = x - pos.x, dy = y - pos.y;
+          if (Math.sqrt(dx*dx + dy*dy) < letterR*1.25) {
+            overlapping = true;
+            break;
+          }
+        }
+        if (!overlapping) positions.push({x, y});
+      }
+      return positions;
+    }
+
+    function setupCircle() {
+      circle.innerHTML = '';
+      const letters = shuffle(allLetters.slice());
+      letterButtons = [];
+      const positions = placeLettersInCircle(totalLetters, circleSize/2, letterSize/2);
+      for (let i = 0; i < totalLetters; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'circle-letter';
+        btn.style.left = positions[i].x + 'px';
+        btn.style.top = positions[i].y + 'px';
+        btn.textContent = letters[i];
+        btn.disabled = true;
+        btn.addEventListener('click', () => checkAnswer(letters[i], btn));
+        circle.appendChild(btn);
+        letterButtons.push(btn);
+      }
+    }
+
+    function setupNewRound(autoPlay) {
+      resultEl.textContent = '';
+      playBtn.disabled = false;
+      awaitingNext = false;
+      playBtn.textContent = "Play Sound";
+      canAnswer = false;
+      setupCircle();
+      currentLetter = targetLetters[Math.floor(Math.random()*targetLetters.length)];
+      alreadySpokenCongrats = false;
+      if (autoPlay) playSound();
+    }
+
+    function playSound() {
+      if (awaitingNext) {
+        setupNewRound(true);
+        return;
+      }
+      window.speechSynthesis.cancel();
+      speak(currentLetter);
+      canAnswer = true;
+      letterButtons.forEach(btn => btn.disabled = false);
+      playBtn.textContent = "Play Sound Again";
+    }
+
+    function checkAnswer(guess, btn) {
+      if (!canAnswer) return;
+      if (guess === currentLetter) {
+        correctScore++;
+        updateScoreCard();
+        resultEl.textContent = 'Yes! That is ' + currentLetter + '!';
+        letterButtons.forEach(b => b.disabled = true);
+        playBtn.disabled = false;
+        playBtn.textContent = "Play Next Sound";
+        canAnswer = false;
+        awaitingNext = true;
+        btn.style.background = '#d6ffd6';
+      } else {
+        wrongScore++;
+        updateScoreCard();
+        resultEl.textContent = 'Try again!';
+        btn.style.background = '#ffd6d6';
+      }
+    }
+
+    playBtn.addEventListener('click', playSound);
+    resetBtn.addEventListener('click', () => {
+      correctScore = 0;
+      wrongScore = 0;
+      updateScoreCard();
+      setupNewRound(false);
+    });
+
+    document.addEventListener('keydown', function(e) {
+      // Allow both Enter and Space to trigger the button
+      if (
+        (!playBtn.disabled) &&
+        (
+          e.key === "Enter" ||
+          e.code === "NumpadEnter" ||
+          e.key === " " ||
+          e.code === "Space"
+        )
+      ) {
+        e.preventDefault();
+        playBtn.click();
+      }
+    });
+
+    updateScoreCard();
+    setupNewRound(false);
+
+  </script>
+</body>
+</html>
