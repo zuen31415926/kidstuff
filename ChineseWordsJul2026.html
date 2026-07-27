@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>7歲繁體中文詞語與拼音認讀學習單</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+    body {
+      font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, "PingFang TC", "BiauKai", "Microsoft JhengHei", sans-serif;
+      background-color: #f0fdf4;
+    }
+    
+    /* 翻牌卡片效果 */
+    .perspective-1000 {
+      perspective: 1000px;
+    }
+    .transform-style-3d {
+      transform-style: preserve-3d;
+    }
+    .backface-hidden {
+      backface-visibility: hidden;
+    }
+    .rotate-y-180 {
+      transform: rotateY(180deg);
+    }
+
+    /* 列印專用樣式 */
+    @media print {
+      .no-print {
+        display: none !important;
+      }
+      .print-only {
+        display: block !important;
+      }
+      body {
+        background-color: white !important;
+        color: black !important;
+      }
+      .page-break {
+        page-break-after: always;
+      }
+      .print-border {
+        border: 1px solid #cbd5e1 !important;
+      }
+    }
+
+    @media screen {
+      .print-only {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col justify-between">
+
+  <!-- 頂部導覽列 (線上版顯示，列印時隱藏) -->
+  <header class="no-print bg-white shadow-md border-b border-emerald-100 sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center font-bold text-xl shadow-lg shadow-emerald-200">
+          <i class="fa-solid fa-book-open-reader"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold text-slate-800 tracking-wide">繁體中文詞語認讀寶典</h1>
+          <p class="text-xs text-emerald-600 font-medium">專為 7 歲小學員設計（共 43 個核心詞語）</p>
+        </div>
+      </div>
+
+      <!-- 模式切換按鈕 -->
+      <nav class="flex flex-wrap gap-2">
+        <button onclick="switchTab('cards')" id="tab-cards" class="tab-btn px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 bg-emerald-500 text-white shadow-sm">
+          <i class="fa-solid fa-layer-group"></i> 認讀字卡
+        </button>
+        <button onclick="switchTab('list')" id="tab-list" class="tab-btn px-4 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition flex items-center gap-2">
+          <i class="fa-solid fa-list-check"></i> 詞語總表
+        </button>
+        <button onclick="switchTab('game')" id="tab-game" class="tab-btn px-4 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition flex items-center gap-2">
+          <i class="fa-solid fa-puzzle-piece"></i> 拼音連連看
+        </button>
+        <button onclick="switchTab('print')" id="tab-print" class="tab-btn px-4 py-2 rounded-xl text-sm font-bold text-amber-600 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition flex items-center gap-2">
+          <i class="fa-solid fa-print"></i> 列印工作紙
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- 主要內容區 -->
+  <main class="max-w-6xl mx-auto px-4 py-6 flex-grow w-full">
+
+    <!-- 1. 認讀字卡模式 (Cards Mode) -->
+    <section id="sec-cards" class="no-print space-y-6">
+      <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-bold text-emerald-800">學習進度：</span>
+          <span id="card-progress" class="text-sm font-extrabold text-emerald-600 bg-white px-3 py-1 rounded-full shadow-sm">1 / 43</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="text-sm font-medium text-slate-700 flex items-center gap-1 cursor-pointer">
+            <input type="checkbox" id="auto-speak" class="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4" checked>
+            切換時自動發音
+          </label>
+          <button onclick="toggleCardPinyin()" class="text-xs bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold px-3 py-1.5 rounded-lg shadow-sm">
+            <i class="fa-solid fa-eye"></i> <span id="pinyin-toggle-text">隱藏拼音</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 大卡片區域 -->
+      <div class="max-w-md mx-auto perspective-1000">
+        <div id="flashcard" class="bg-white rounded-3xl shadow-xl border-4 border-emerald-100 p-8 min-h-[320px] flex flex-col justify-between items-center text-center relative transition-all duration-300 hover:shadow-2xl">
+          <button onclick="speakCurrentWord()" title="播放發音" class="absolute top-4 right-4 w-12 h-12 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center hover:bg-emerald-500 hover:text-white transition shadow-sm">
+            <i class="fa-solid fa-volume-high text-xl"></i>
+          </button>
+          
+          <div class="my-auto space-y-4">
+            <!-- 拼音 -->
+            <p id="card-pinyin" class="text-2xl font-semibold text-emerald-600 tracking-wider">chuán shuō</p>
+            <!-- 詞語 -->
+            <h2 id="card-word" class="text-5xl font-black text-slate-800 tracking-widest my-2">傳說</h2>
+            <!-- 釋義/例句提示 -->
+            <p id="card-hint" class="text-sm text-slate-500 bg-slate-50 px-4 py-2 rounded-xl inline-block border border-slate-100">
+              古老留傳下來的故事
+            </p>
+          </div>
+
+          <!-- 已學會標記 -->
+          <div class="w-full flex justify-between items-center pt-4 border-t border-slate-100">
+            <button onclick="toggleStarCurrent()" id="btn-star" class="text-slate-400 hover:text-amber-400 font-medium text-sm flex items-center gap-1 transition">
+              <i class="fa-star fa-regular text-lg"></i> 標記為熟練
+            </button>
+            <span class="text-xs text-slate-400">點擊喇叭聽發音</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 控制按鈕 -->
+      <div class="flex justify-center items-center gap-4 max-w-md mx-auto">
+        <button onclick="prevCard()" class="flex-1 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold py-3 px-6 rounded-2xl shadow-sm hover:shadow transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-arrow-left"></i> 上一個
+        </button>
+        <button onclick="nextCard()" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-6 rounded-2xl shadow-md hover:shadow-lg transition flex items-center justify-center gap-2">
+          下一個 <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </div>
+    </section>
+
+    <!-- 2. 詞語總表模式 (List Mode) -->
+    <section id="sec-list" class="no-print space-y-4 hidden">
+      <div class="bg-white rounded-2xl shadow-md border border-slate-200 p-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="relative flex-1 min-w-[240px]">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+          <input type="text" id="search-input" oninput="filterWords()" placeholder="搜尋詞語或拼音..." class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm">
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-slate-500">提示：點擊詞語旁的喇叭可以聽發音喔！</span>
+        </div>
+      </div>
+
+      <!-- 表格 -->
+      <div class="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-emerald-500 text-white text-sm">
+                <th class="py-3 px-4 w-12 text-center">#</th>
+                <th class="py-3 px-4 font-bold text-lg">詞語</th>
+                <th class="py-3 px-4 font-bold">漢語拼音</th>
+                <th class="py-3 px-4 text-center">發音</th>
+                <th class="py-3 px-4 text-center">認讀打卡</th>
+              </tr>
+            </thead>
+            <tbody id="vocab-table-body" class="divide-y divide-slate-100 text-slate-700">
+              <!-- 由 JS 動態生成 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. 配對遊戲模式 (Game Mode) -->
+    <section id="sec-game" class="no-print space-y-6 hidden">
+      <div class="bg-white rounded-2xl p-6 shadow-md border border-slate-200 text-center max-w-2xl mx-auto space-y-3">
+        <h2 class="text-2xl font-extrabold text-emerald-600 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-gamepad"></i> 拼音連連看挑戰
+        </h2>
+        <p class="text-sm text-slate-600">點擊左邊的「詞語」，再點擊右邊對應的「拼音」把它們配對起來！</p>
+        <div class="flex justify-center items-center gap-6 pt-2">
+          <div class="text-slate-700">得分：<span id="game-score" class="font-extrabold text-emerald-600 text-xl">0</span></div>
+          <button onclick="startMatchGame()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-5 py-2 rounded-xl shadow transition text-sm flex items-center gap-2">
+            <i class="fa-solid fa-rotate-right"></i> 換一組全新詞語
+          </button>
+        </div>
+      </div>
+
+      <!-- 遊戲區域 -->
+      <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- 詞語欄 -->
+        <div id="game-words-col" class="space-y-3">
+          <!-- 動態生成 -->
+        </div>
+        <!-- 拼音欄 -->
+        <div id="game-pinyin-col" class="space-y-3">
+          <!-- 動態生成 -->
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. 可列印工作紙模式 (Print Mode) -->
+    <section id="sec-print" class="space-y-6">
+      
+      <!-- 列印控制面板 (線上顯示，列印時自動隱藏) -->
+      <div class="no-print bg-amber-50 border border-amber-200 rounded-2xl p-6 shadow-md max-w-4xl mx-auto space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h3 class="text-lg font-bold text-amber-900 flex items-center gap-2">
+              <i class="fa-solid fa-sliders"></i> 自訂列印工作紙格式
+            </h3>
+            <p class="text-xs text-amber-700">您可以直接將此頁面存為 PDF 或直接用印表機列印給孩子練習。</p>
+          </div>
+          <button onclick="window.print()" class="bg-amber-500 hover:bg-amber-600 text-white font-extrabold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition flex items-center gap-2 text-base">
+            <i class="fa-solid fa-print"></i> 列印 / 存為 PDF
+          </button>
+        </div>
+
+        <!-- 格式切換選項 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+          <label class="flex items-center gap-2 p-3 bg-white rounded-xl border border-amber-200 cursor-pointer hover:bg-amber-100/50">
+            <input type="radio" name="print-layout" value="review" checked onchange="updatePrintLayout()" class="text-amber-600 focus:ring-amber-500">
+            <span class="text-sm font-bold text-slate-700">1. 詞語認讀朗讀總表</span>
+          </label>
+          <label class="flex items-center gap-2 p-3 bg-white rounded-xl border border-amber-200 cursor-pointer hover:bg-amber-100/50">
+            <input type="radio" name="print-layout" value="fill-pinyin" onchange="updatePrintLayout()" class="text-amber-600 focus:ring-amber-500">
+            <span class="text-sm font-bold text-slate-700">2. 看詞語寫拼音測驗</span>
+          </label>
+          <label class="flex items-center gap-2 p-3 bg-white rounded-xl border border-amber-200 cursor-pointer hover:bg-amber-100/50">
+            <input type="radio" name="print-layout" value="match" onchange="updatePrintLayout()" class="text-amber-600 focus:ring-amber-500">
+            <span class="text-sm font-bold text-slate-700">3. 詞語拼音連線練習</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 實際列印預覽區域 (列印時會列印這部分) -->
+      <div id="printable-area" class="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 max-w-4xl mx-auto text-slate-800">
+        
+        <!-- 工作紙抬頭 -->
+        <div class="border-b-2 border-slate-800 pb-4 mb-6">
+          <div class="flex justify-between items-end">
+            <div>
+              <h1 class="text-2xl font-black text-slate-900 tracking-wide" id="print-sheet-title">繁體中文詞語認讀打卡工作紙</h1>
+              <p class="text-xs text-slate-500 mt-1">小學二年級 / 7歲繁體中文詞語積累</p>
+            </div>
+            <div class="text-right text-xs space-y-1">
+              <div>學生姓名：__________________</div>
+              <div>日期：____年__月__日</div>
+              <div>成績/得分：__________________</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 內容容器（動態切換） -->
+        <div id="print-content">
+          <!-- 由 JS 根據選取的版型渲染 -->
+        </div>
+
+        <!-- 工作紙頁腳 -->
+        <div class="mt-8 pt-4 border-t border-slate-300 text-center text-xs text-slate-400">
+          家長/老師簽名：___________________ | 保持朗讀的好習慣，每天進步一點點！
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- 頁尾 (線上顯示) -->
+  <footer class="no-print bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500 mt-8">
+    <p>專為 7 歲幼童學習傳統繁體中文詞語設計 | 祝學習愉快！</p>
+  </footer>
+
+  <!-- 應用程式邏輯 -->
+  <script>
+    // 完整 43 個詞語清單數據 (修正𣈱快為標準繁體「暢快」，揑成標註「捏成/揑成」)
+    const vocabData = [
+      { id: 1, word: "傳說", pinyin: "chuán shuō", hint: "民間口口相傳的故事" },
+      { id: 2, word: "埋藏", pinyin: "mái cáng", hint: "藏在地下或深處" },
+      { id: 3, word: "保佑", pinyin: "bǎo yòu", hint: "神明保護與祝福" },
+      { id: 4, word: "好心腸", pinyin: "hǎo xīn cháng", hint: "心地善良的人" },
+      { id: 5, word: "暢快", pinyin: "chàng kuài", hint: "心情舒暢快樂" },
+      { id: 6, word: "嘲笑", pinyin: "cháo xiào", hint: "取笑、笑話別人" },
+      { id: 7, word: "閉嘴", pinyin: "bì zuǐ", hint: "合上嘴巴不說話" },
+      { id: 8, word: "重複", pinyin: "chóng fù", hint: "再做或再說一次" },
+      { id: 9, word: "虛線", pinyin: "xū xiàn", hint: "點或短線組成的線" },
+      { id: 10, word: "擦鞋", pinyin: "cā xié", hint: "把鞋子擦乾淨" },
+      { id: 11, word: "垂頭", pinyin: "chuí tóu", hint: "低著頭的樣子" },
+      { id: 12, word: "掃把", pinyin: "sào bǎ", hint: "打掃地面用的工具" },
+      { id: 13, word: "碎片", pinyin: "suì piàn", hint: "破裂的小碎片" },
+      { id: 14, word: "缺少", pinyin: "quē shǎo", hint: "不夠或沒有" },
+      { id: 15, word: "才智", pinyin: "cái zhì", hint: "才能與智慧" },
+      { id: 16, word: "立刻", pinyin: "lì kè", hint: "馬上、即刻" },
+      { id: 17, word: "生兒育女", pinyin: "shēng ér yù nǚ", hint: "生育養育孩子" },
+      { id: 18, word: "靈敏", pinyin: "líng mǐn", hint: "反應非常快" },
+      { id: 19, word: "揑成", pinyin: "niē chéng", hint: "用手指捏塑成形" },
+      { id: 20, word: "爭論", pinyin: "zhēng lùn", hint: "各持己見互相辯論" },
+      { id: 21, word: "雖然", pinyin: "suī rán", hint: "表示轉折連詞" },
+      { id: 22, word: "胡亂", pinyin: "hú luàn", hint: "隨便、沒有條理" },
+      { id: 23, word: "批改", pinyin: "pī gǎi", hint: "修改評閱作業" },
+      { id: 24, word: "借宿一晚", pinyin: "jiè sù yī wǎn", hint: "借住在別人家一晚" },
+      { id: 25, word: "蓋被子", pinyin: "gài bèi zi", hint: "睡覺時蓋上被子" },
+      { id: 26, word: "建議", pinyin: "jiàn yì", hint: "提出自己的想法主張" },
+      { id: 27, word: "微笑", pinyin: "wēi xiào", hint: "輕微露出笑臉" },
+      { id: 28, word: "縮小", pinyin: "suō xiǎo", hint: "體積或範圍變小" },
+      { id: 29, word: "目瞪口呆", pinyin: "mù dèng kǒu dāi", hint: "因吃驚而發呆" },
+      { id: 30, word: "氣沖沖", pinyin: "qì chōng chōng", hint: "非常生氣的樣子" },
+      { id: 31, word: "重量", pinyin: "zhòng liàng", hint: "物體有多重" },
+      { id: 32, word: "寺廟", pinyin: "sì miào", hint: "供奉神佛的地方" },
+      { id: 33, word: "支持", pinyin: "zhī chí", hint: "鼓勵並挺身相助" },
+      { id: 34, word: "神態", pinyin: "shén tài", hint: "臉上的神色表情" },
+      { id: 35, word: "莊重自然", pinyin: "zhuāng zhòng zì rán", hint: "端莊大方不拘束" },
+      { id: 36, word: "不禁", pinyin: "bù jīn", hint: "忍不住" },
+      { id: 37, word: "傑作", pinyin: "jié zuò", hint: "極優秀的作品" },
+      { id: 38, word: "名貴", pinyin: "míng guì", hint: "著名且珍貴昂貴" },
+      { id: 39, word: "有效", pinyin: "yǒu xiào", hint: "能產生好效果" },
+      { id: 40, word: "徒弟", pinyin: "tú dì", hint: "跟隨師父學習的人" },
+      { id: 41, word: "後悔", pinyin: "hòu huǐ", hint: "事後感到遺憾與懊悔" },
+      { id: 42, word: "不論", pinyin: "bù lùn", hint: "無論、不管是怎樣" },
+      { id: 43, word: "怪模怪樣", pinyin: "guài mú guài yàng", hint: "樣子古怪稀奇" }
+    ];
+
+    // 全域狀態
+    let currentIndex = 0;
+    let showPinyin = true;
+    let starredItems = new Set();
+    let checkedItems = new Set();
+    
+    // 遊戲狀態
+    let selectedWordCard = null;
+    let selectedPinyinCard = null;
+    let gameScore = 0;
+    let currentGamePairs = [];
+
+    // 初始化頁面
+    window.onload = function() {
+      renderCard();
+      renderTable();
+      startMatchGame();
+      updatePrintLayout();
+    };
+
+    // 頁籤切換
+    function switchTab(tab) {
+      const tabs = ['cards', 'list', 'game', 'print'];
+      tabs.forEach(t => {
+        document.getElementById(`sec-${t}`).classList.add('hidden');
+        const btn = document.getElementById(`tab-${t}`);
+        if (btn) {
+          btn.classList.remove('bg-emerald-500', 'text-white', 'shadow-sm');
+          btn.classList.add('text-slate-600', 'hover:bg-slate-100');
+        }
+      });
+
+      document.getElementById(`sec-${tab}`).classList.remove('hidden');
+      const activeBtn = document.getElementById(`tab-${tab}`);
+      if (activeBtn) {
+        activeBtn.classList.add('bg-emerald-500', 'text-white', 'shadow-sm');
+        activeBtn.classList.remove('text-slate-600', 'hover:bg-slate-100');
+      }
+
+      if (tab === 'cards' && document.getElementById('auto-speak').checked) {
+        speakCurrentWord();
+      }
+    }
+
+    // 發音功能 (Web Speech API)
+    function speakWord(word) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel(); // 停止先前的聲音
+        const utterance = new SpeechSynthesisUtterance(word);
+        utterance.lang = 'zh-TW'; // 國語/普通話語音
+        utterance.rate = 0.8; // 專為7歲孩童放慢語速
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    function speakCurrentWord() {
+      speakWord(vocabData[currentIndex].word);
+    }
+
+    // --- 認讀字卡邏輯 ---
+    function renderCard() {
+      const item = vocabData[currentIndex];
+      document.getElementById('card-progress').innerText = `${currentIndex + 1} / ${vocabData.length}`;
+      document.getElementById('card-word').innerText = item.word;
+      document.getElementById('card-hint').innerText = item.hint;
+      
+      const pinyinEl = document.getElementById('card-pinyin');
+      pinyinEl.innerText = item.pinyin;
+      pinyinEl.style.visibility = showPinyin ? 'visible' : 'hidden';
+
+      // 標記星號按鈕狀態
+      const starBtn = document.getElementById('btn-star');
+      if (starredItems.has(item.id)) {
+        starBtn.innerHTML = `<i class="fa-star fa-solid text-amber-400 text-lg"></i> 已熟練`;
+      } else {
+        starBtn.innerHTML = `<i class="fa-star fa-regular text-lg"></i> 標記為熟練`;
+      }
+    }
+
+    function prevCard() {
+      currentIndex = (currentIndex - 1 + vocabData.length) % vocabData.length;
+      renderCard();
+      if (document.getElementById('auto-speak').checked) speakCurrentWord();
+    }
+
+    function nextCard() {
+      currentIndex = (currentIndex + 1) % vocabData.length;
+      renderCard();
+      if (document.getElementById('auto-speak').checked) speakCurrentWord();
+    }
+
+    function toggleCardPinyin() {
+      showPinyin = !showPinyin;
+      document.getElementById('pinyin-toggle-text').innerText = showPinyin ? '隱藏拼音' : '顯示拼音';
+      renderCard();
+    }
+
+    function toggleStarCurrent() {
+      const id = vocabData[currentIndex].id;
+      if (starredItems.has(id)) {
+        starredItems.delete(id);
+      } else {
+        starredItems.add(id);
+      }
+      renderCard();
+    }
+
+    // --- 詞語總表邏輯 ---
+    function renderTable(filterText = '') {
+      const tbody = document.getElementById('vocab-table-body');
+      tbody.innerHTML = '';
+
+      const filtered = vocabData.filter(item => 
+        item.word.includes(filterText) || item.pinyin.toLowerCase().includes(filterText.toLowerCase())
+      );
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-400">找不到符合的詞語喔～</td></tr>`;
+        return;
+      }
+
+      filtered.forEach((item, idx) => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition';
+        tr.innerHTML = `
+          <td class="py-3 px-4 text-center text-xs font-bold text-slate-400">${item.id}</td>
+          <td class="py-3 px-4 font-black text-xl text-slate-800 tracking-wider">${item.word}</td>
+          <td class="py-3 px-4 font-semibold text-emerald-600">${item.pinyin}</td>
+          <td class="py-3 px-4 text-center">
+            <button onclick="speakWord('${item.word}')" class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-500 hover:text-white transition inline-flex items-center justify-center">
+              <i class="fa-solid fa-volume-high text-xs"></i>
+            </button>
+          </td>
+          <td class="py-3 px-4 text-center">
+            <input type="checkbox" onchange="toggleCheck(${item.id})" ${checkedItems.has(item.id) ? 'checked' : ''} class="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer">
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function filterWords() {
+      const val = document.getElementById('search-input').value.trim();
+      renderTable(val);
+    }
+
+    function toggleCheck(id) {
+      if (checkedItems.has(id)) {
+        checkedItems.delete(id);
+      } else {
+        checkedItems.add(id);
+      }
+    }
+
+    // --- 拼音連連看遊戲 ---
+    function startMatchGame() {
+      selectedWordCard = null;
+      selectedPinyinCard = null;
+
+      // 隨機選出 6 個詞語
+      const shuffled = [...vocabData].sort(() => 0.5 - Math.random());
+      currentGamePairs = shuffled.slice(0, 6);
+
+      const wordsCol = document.getElementById('game-words-col');
+      const pinyinCol = document.getElementById('game-pinyin-col');
+
+      wordsCol.innerHTML = '<h3 class="text-center font-bold text-slate-500 text-sm mb-2">詞語</h3>';
+      pinyinCol.innerHTML = '<h3 class="text-center font-bold text-slate-500 text-sm mb-2">拼音</h3>';
+
+      // 左邊詞語
+      currentGamePairs.forEach(item => {
+        const btn = document.createElement('button');
+        btn.className = `game-card-word w-full p-4 bg-white border-2 border-slate-200 rounded-2xl font-black text-2xl text-slate-800 shadow-sm hover:border-emerald-400 transition text-center flex items-center justify-between`;
+        btn.dataset.id = item.id;
+        btn.innerHTML = `<span>${item.word}</span> <i class="fa-regular fa-circle text-slate-300"></i>`;
+        btn.onclick = () => selectGameWord(btn, item);
+        wordsCol.appendChild(btn);
+      });
+
+      // 右邊拼音 (打亂)
+      const pinyinShuffled = [...currentGamePairs].sort(() => 0.5 - Math.random());
+      pinyinShuffled.forEach(item => {
+        const btn = document.createElement('button');
+        btn.className = `game-card-pinyin w-full p-4 bg-white border-2 border-slate-200 rounded-2xl font-bold text-xl text-emerald-600 shadow-sm hover:border-emerald-400 transition text-center flex items-center justify-between`;
+        btn.dataset.id = item.id;
+        btn.innerHTML = `<i class="fa-regular fa-circle text-slate-300"></i> <span>${item.pinyin}</span>`;
+        btn.onclick = () => selectGamePinyin(btn, item);
+        pinyinCol.appendChild(btn);
+      });
+    }
+
+    function selectGameWord(btn, item) {
+      if (btn.classList.contains('bg-emerald-100')) return; // 已配對成功
+
+      document.querySelectorAll('.game-card-word').forEach(b => {
+        if (!b.classList.contains('bg-emerald-100')) {
+          b.classList.remove('border-amber-400', 'bg-amber-50');
+        }
+      });
+
+      btn.classList.add('border-amber-400', 'bg-amber-50');
+      selectedWordCard = { btn, item };
+
+      checkMatch();
+    }
+
+    function selectGamePinyin(btn, item) {
+      if (btn.classList.contains('bg-emerald-100')) return; // 已配對成功
+
+      document.querySelectorAll('.game-card-pinyin').forEach(b => {
+        if (!b.classList.contains('bg-emerald-100')) {
+          b.classList.remove('border-amber-400', 'bg-amber-50');
+        }
+      });
+
+      btn.classList.add('border-amber-400', 'bg-amber-50');
+      selectedPinyinCard = { btn, item };
+
+      checkMatch();
+    }
+
+    function checkMatch() {
+      if (selectedWordCard && selectedPinyinCard) {
+        if (selectedWordCard.item.id === selectedPinyinCard.item.id) {
+          // 配對成功！
+          speakWord(selectedWordCard.item.word);
+
+          selectedWordCard.btn.className = 'w-full p-4 bg-emerald-100 border-2 border-emerald-500 text-emerald-800 rounded-2xl font-black text-2xl shadow-sm text-center flex items-center justify-between';
+          selectedWordCard.btn.innerHTML = `<span>${selectedWordCard.item.word}</span> <i class="fa-solid fa-circle-check text-emerald-500"></i>`;
+
+          selectedPinyinCard.btn.className = 'w-full p-4 bg-emerald-100 border-2 border-emerald-500 text-emerald-800 rounded-2xl font-bold text-xl shadow-sm text-center flex items-center justify-between';
+          selectedPinyinCard.btn.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-500"></i> <span>${selectedPinyinCard.item.pinyin}</span>`;
+
+          gameScore += 10;
+          document.getElementById('game-score').innerText = gameScore;
+
+          selectedWordCard = null;
+          selectedPinyinCard = null;
+
+          // 檢查是否全數配對完成
+          const matched = document.querySelectorAll('.game-card-word.bg-emerald-100').length;
+          if (matched === currentGamePairs.length) {
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+          }
+        } else {
+          // 配對失敗，短暫提示後復原
+          setTimeout(() => {
+            if (selectedWordCard) selectedWordCard.btn.classList.remove('border-amber-400', 'bg-amber-50');
+            if (selectedPinyinCard) selectedPinyinCard.btn.classList.remove('border-amber-400', 'bg-amber-50');
+            selectedWordCard = null;
+            selectedPinyinCard = null;
+          }, 400);
+        }
+      }
+    }
+
+    // --- 列印工作紙渲染邏輯 ---
+    function updatePrintLayout() {
+      const layout = document.querySelector('input[name="print-layout"]:checked').value;
+      const container = document.getElementById('print-content');
+      const titleEl = document.getElementById('print-sheet-title');
+
+      if (layout === 'review') {
+        titleEl.innerText = "繁體中文詞語認讀與朗讀打卡單";
+        let html = `
+          <p class="text-xs text-slate-500 mb-4">說明：請小學員朗讀以下詞語，每正確朗讀一次，就在打卡格 (口) 中打勾。</p>
+          <div class="grid grid-cols-2 gap-4">
+        `;
+        vocabData.forEach((item) => {
+          html += `
+            <div class="p-3 border border-slate-300 rounded-xl flex items-center justify-between bg-white print-border">
+              <div class="flex items-baseline gap-3">
+                <span class="font-black text-xl text-slate-900 tracking-widest">${item.word}</span>
+                <span class="text-sm font-semibold text-slate-600">${item.pinyin}</span>
+              </div>
+              <div class="flex gap-1 text-slate-400 text-xs">
+                <span>[ ]</span><span>[ ]</span><span>[ ]</span>
+              </div>
+            </div>
+          `;
+        });
+        html += `</div>`;
+        container.innerHTML = html;
+
+      } else if (layout === 'fill-pinyin') {
+        titleEl.innerText = "看詞語寫拼音小測驗";
+        let html = `
+          <p class="text-xs text-slate-500 mb-4">說明：請在詞語旁邊的橫線上，寫出正確的漢語拼音。</p>
+          <div class="grid grid-cols-2 gap-x-8 gap-y-6">
+        `;
+        vocabData.forEach((item, idx) => {
+          html += `
+            <div class="flex items-center justify-between pb-2 border-b border-slate-300">
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-slate-400 font-bold w-6">${idx + 1}.</span>
+                <span class="font-black text-2xl text-slate-900 tracking-widest">${item.word}</span>
+              </div>
+              <div class="w-36 border-b-2 border-dashed border-slate-400 h-6"></div>
+            </div>
+          `;
+        });
+        html += `</div>`;
+        container.innerHTML = html;
+
+      } else if (layout === 'match') {
+        titleEl.innerText = "詞語與拼音趣味連線題";
+        let html = `
+          <p class="text-xs text-slate-500 mb-4">說明：請用直線將左邊的詞語與右邊正確的拼音連接起來。</p>
+        `;
+
+        // 將 43 個詞語分為每組 8 個進行列印連線
+        for (let page = 0; page < Math.ceil(vocabData.length / 8); page++) {
+          const chunk = vocabData.slice(page * 8, (page + 1) * 8);
+          const shuffledPinyin = [...chunk].sort(() => 0.5 - Math.random());
+
+          html += `
+            <div class="mb-8 p-4 border border-slate-300 rounded-2xl print-border">
+              <h4 class="font-bold text-xs text-slate-500 mb-4">第 ${page + 1} 大題</h4>
+              <div class="grid grid-cols-2 gap-8">
+                <!-- 左欄 詞語 -->
+                <div class="space-y-4">
+                  ${chunk.map(item => `
+                    <div class="flex items-center justify-between border border-slate-200 p-2 rounded-lg">
+                      <span class="font-black text-lg text-slate-900">${item.word}</span>
+                      <span class="w-3 h-3 rounded-full border-2 border-slate-800 bg-white"></span>
+                    </div>
+                  `).join('')}
+                </div>
+                <!-- 右欄 拼音 -->
+                <div class="space-y-4">
+                  ${shuffledPinyin.map(item => `
+                    <div class="flex items-center justify-between border border-slate-200 p-2 rounded-lg">
+                      <span class="w-3 h-3 rounded-full border-2 border-slate-800 bg-white"></span>
+                      <span class="font-bold text-base text-slate-800">${item.pinyin}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+          `;
+        }
+        container.innerHTML = html;
+      }
+    }
+  </script>
+</body>
+</html>
